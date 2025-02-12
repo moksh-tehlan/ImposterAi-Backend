@@ -30,7 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
         String userId = jwtService.getUserId(token);
-        UserEntity userEntity = (UserEntity) userServices.loadUserById(userId);
+        UserEntity userEntity = userServices.loadUserById(userId);
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(userEntity, null, userEntity.getAuthorities()));
 
         filterChain.doFilter(request, response);

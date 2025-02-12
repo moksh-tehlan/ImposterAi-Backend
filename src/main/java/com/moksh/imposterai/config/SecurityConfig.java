@@ -28,6 +28,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/auth/**")
                         .permitAll()
+                        .requestMatchers("/game/**")
+                        .permitAll()
                         .anyRequest()
                         .authenticated()
                 )

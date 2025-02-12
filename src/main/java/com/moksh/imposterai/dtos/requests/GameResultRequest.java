@@ -1,4 +1,4 @@
-package com.moksh.imposterai.dtos;
+package com.moksh.imposterai.dtos.requests;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,10 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserDto {
-    private String id;
-    private String username;
+@Builder
+public class GameResultRequest {
+    boolean isOpponentAHuman;
+    String matchId;
 }

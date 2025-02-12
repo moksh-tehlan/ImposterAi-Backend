@@ -6,10 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class UserDto {
-    private String id;
-    private String username;
+@AllArgsConstructor
+@Builder
+public class ChatMessage {
+    private String message;
 }

@@ -1,8 +1,8 @@
 package com.moksh.imposterai.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -12,6 +12,10 @@ import java.util.List;
 @Entity(name = "users")
 @Getter
 @Setter
+@ToString
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserEntity implements UserDetails {
 
     @Id
@@ -20,6 +24,7 @@ public class UserEntity implements UserDetails {
 
     @Column(unique = true)
     private String username;
+
     private String password;
 
     @Override

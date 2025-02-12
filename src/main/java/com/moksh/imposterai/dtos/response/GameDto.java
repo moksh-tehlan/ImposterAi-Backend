@@ -1,15 +1,13 @@
-package com.moksh.imposterai.dtos;
+package com.moksh.imposterai.dtos.response;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor
-public class UserDto {
+@AllArgsConstructor
+public class GameDto {
     private String id;
-    private String username;
+    private boolean vsBot;
 }

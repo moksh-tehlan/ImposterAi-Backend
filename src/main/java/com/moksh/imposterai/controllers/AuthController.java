@@ -1,6 +1,5 @@
 package com.moksh.imposterai.controllers;
 
-import com.moksh.imposterai.dtos.UserDto;
 import com.moksh.imposterai.dtos.requests.AuthRequest;
 import com.moksh.imposterai.dtos.response.AuthResponse;
 import com.moksh.imposterai.services.AuthService;
@@ -24,5 +23,10 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@RequestBody AuthRequest authRequest) {
         return authService.login(authRequest);
+    }
+
+    @GetMapping("/username-exists")
+    public Boolean isUsernameExists(@RequestParam String username) {
+        return authService.isUsernameExists(username);
     }
 }

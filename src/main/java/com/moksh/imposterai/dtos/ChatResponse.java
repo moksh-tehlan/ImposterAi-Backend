@@ -6,10 +6,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserDto {
+@Builder
+public class ChatResponse {
     private String id;
-    private String username;
+    private UserDto sender;
+    private String currentTyperId;
+    private String message;
 }
