@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 public class ChatService {
     private final ChatRepository chatRepository;
     private final MatchService matchService;
-    private final UserServices userServices;
+    private final UserService userServices;
 
-    public ChatEntity saveChat(String matchId, String senderId, String message) throws Exception {
-        MatchEntity match = matchService.getMatchEntity(matchId);
+    public ChatEntity saveChat(String matchId, String senderId, String message) {
+        MatchEntity match = matchService.getMatch(matchId);
         UserEntity user = userServices.loadUserById(senderId);
         ChatEntity chat = ChatEntity.builder()
                 .match(match)

@@ -9,7 +9,15 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-     ddl-auto: update
+      ddl-auto: update
+
+game:
+  matchmaking:
+    bot-match-probability: 0.3
+    max-wait-time-seconds: 30
+    max-concurrent-matches: 1000
+    bot-matching-enabled: false
+    game-duration: 120
 
 jwt:
   secretKey: bXkxNkFocUhKbTFxNUtpc2Y0NlNxRkJmRHo4b3B0TGFEcVpXZkpNTkRuVnF1YmFK

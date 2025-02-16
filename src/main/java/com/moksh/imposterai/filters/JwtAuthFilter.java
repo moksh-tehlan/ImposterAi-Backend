@@ -2,7 +2,7 @@ package com.moksh.imposterai.filters;
 
 import com.moksh.imposterai.entities.UserEntity;
 import com.moksh.imposterai.services.JwtService;
-import com.moksh.imposterai.services.UserServices;
+import com.moksh.imposterai.services.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +19,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
-    private final UserServices userServices;
+    private final UserService userServices;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {

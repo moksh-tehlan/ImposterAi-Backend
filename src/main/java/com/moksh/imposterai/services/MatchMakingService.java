@@ -1,256 +1,181 @@
 package com.moksh.imposterai.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moksh.imposterai.config.MatchmakingProperties;
+import com.moksh.imposterai.dtos.MatchFoundData;
 import com.moksh.imposterai.dtos.UserDto;
 import com.moksh.imposterai.dtos.enums.MatchState;
 import com.moksh.imposterai.dtos.enums.MatchStatus;
-import com.moksh.imposterai.dtos.enums.SocketActions;
-import com.moksh.imposterai.dtos.response.*;
-import com.moksh.imposterai.entities.GameResultEntity;
 import com.moksh.imposterai.entities.MatchEntity;
 import com.moksh.imposterai.entities.PlayerEntity;
 import com.moksh.imposterai.entities.UserEntity;
-import com.moksh.imposterai.exceptions.ResourceNotFoundException;
+import com.moksh.imposterai.exceptions.MatchmakingException;
+import com.moksh.imposterai.exceptions.PlayerAlreadyInMatchException;
+import com.moksh.imposterai.exceptions.PlayerNotFoundException;
+import com.moksh.imposterai.exceptions.PlayerOfflineException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-import java.io.IOException;
-import java.util.Optional;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MatchMakingService {
-    private final MatchService matchService;
     private final PlayerService playerService;
+    private final MatchService matchService;
+    private final GameTimerService timerService;
+    private final NotificationService notificationService;
+    private final UserService userService;
     private final SessionService sessionService;
-    private final ObjectMapper objectMapper;
     private final ModelMapper modelMapper;
-    private final UserServices userServices;
-    private final ConcurrentHashMap<String, ScheduledExecutorService> matchSchedulers = new ConcurrentHashMap<>();
-    private final GameResultService gameResultService;
+    private final MatchmakingProperties matchmakingProperties;
     private final Random random = new Random();
 
-    public void handleFindMatch(String sessionId) throws Exception {
-        UserEntity user = sessionService.getUser(sessionId);
-        PlayerEntity currentPlayer = initializePlayer(sessionId, user);
+    public void findMatch(String sessionId) throws MatchmakingException {
+        PlayerEntity player = initializePlayer(sessionId);
+        validatePlayerEligibility(player);
 
-        if (!isPlayerEligible(currentPlayer)) return;
-        if (playerService.getWaitingPlayer().size() <= 1) return;
+        List<PlayerEntity> waitingPlayers = playerService.getWaitingPlayers();
+        if (waitingPlayers.size() <= 1) {
+            return;
+        }
 
-        PlayerEntity opponent = createOpponent(playerService.getWaitingPlayer().get(0));
-        MatchEntity match = setupMatch(currentPlayer, opponent);
+        PlayerEntity opponent = createOpponent(waitingPlayers.get(0));
+        MatchEntity match = createMatch(player, opponent);
 
-        notifyPlayers(match);
+        notifyMatchParticipants(match);
+        timerService.startGameTimer(match.getId());
     }
 
-    private PlayerEntity initializePlayer(String sessionId, UserEntity user) {
-        return playerService.savePlayer(PlayerEntity.builder()
+    public void handleMatchAbandoned(String sessionId) throws MatchmakingException {
+
+        MatchEntity match = matchService.findByPlayerId(sessionId);
+
+        timerService.stopTimer(match.getId());
+
+        PlayerEntity opponent = match.getOpponent(sessionId)
+                .orElseThrow(() -> new PlayerNotFoundException("Opponent not found"));
+
+        if (!opponent.getIsBot()) {
+            notificationService.sendMatchAbandoned(opponent.getSessionId());
+        }
+        cleanupMatch(match);
+    }
+
+    private PlayerEntity initializePlayer(String sessionId) {
+        UserEntity user = sessionService.getUser(sessionId);
+        return playerService.save(PlayerEntity.builder()
                 .sessionId(sessionId)
                 .user(user)
                 .matchStatus(MatchStatus.QUEUED)
                 .build());
     }
 
-    private PlayerEntity createOpponent(PlayerEntity waitingPlayer) throws ResourceNotFoundException {
-        boolean vsBot = false;
-        if (vsBot) {
-            UserEntity botUser = userServices.getBot();
-            PlayerEntity playerEntity = PlayerEntity.builder()
-                    .sessionId(UUID.randomUUID().toString())
-                    .user(botUser)
-                    .isBot(true)
-                    .matchStatus(MatchStatus.BOT)
-                    .build();
-            return playerService.savePlayer(playerEntity);
+    private void validatePlayerEligibility(PlayerEntity player) throws MatchmakingException {
+        if (player.getMatchStatus() == MatchStatus.IN_MATCH) {
+            throw new PlayerAlreadyInMatchException(player.getSessionId());
         }
-        return waitingPlayer;
+        if (player.getMatchStatus() == MatchStatus.OFFLINE) {
+            throw new PlayerOfflineException(player.getSessionId());
+        }
     }
 
-    private MatchEntity setupMatch(PlayerEntity currentPlayer, PlayerEntity opponent) {
-        updatePlayerStatuses(currentPlayer, opponent);
-        boolean isPlayerOneTurn = random.nextBoolean();
-
-        return matchService.saveMatch(MatchEntity.builder()
-                .playerOne(currentPlayer)
-                .playerTwo(opponent)
-                .currentTyperId(isPlayerOneTurn ? currentPlayer.getUser().getId() : opponent.getUser().getId())
+    private MatchEntity createMatch(PlayerEntity player1, PlayerEntity player2) {
+        updatePlayerStatuses(player1, player2);
+        return matchService.save(MatchEntity.builder()
+                .playerOne(player1)
+                .playerTwo(player2)
+                .currentTyperId(determineFirstPlayer(player1, player2))
                 .matchState(MatchState.IN_PROGRESS)
                 .build());
     }
 
-    private void updatePlayerStatuses(PlayerEntity currentPlayer, PlayerEntity opponent) {
-        boolean vsBot = opponent.getIsBot();
-        currentPlayer.setMatchStatus(MatchStatus.IN_MATCH);
-        playerService.updatePlayer(currentPlayer);
-
-        if (!vsBot) {
-            opponent.setMatchStatus(MatchStatus.IN_MATCH);
-            playerService.updatePlayer(opponent);
-        }
+    private String determineFirstPlayer(PlayerEntity player1, PlayerEntity player2) {
+        return new Random().nextBoolean() ?
+                player1.getUser().getId() :
+                player2.getUser().getId();
     }
 
-    private void notifyPlayers(MatchEntity match) throws IOException {
-        PlayerEntity playerOne = match.getPlayerOne();
-        PlayerEntity playerTwo = match.getPlayerTwo();
+    private PlayerEntity createOpponent(PlayerEntity waitingPlayer) throws MatchmakingException {
+        try {
+            // Check if we should create a bot opponent (can be configurable)
+            boolean shouldCreateBot = matchmakingProperties.getBotMatchingEnabled() && random.nextDouble() < matchmakingProperties.getBotMatchProbability();
 
-
-        WebSocketSession playerOneSession = sessionService.getSession(playerOne.getSessionId());
-
-        sendMatchFoundMessage(playerOneSession, match.getId(), match.getCurrentTyperId(), playerTwo.getUser());
-
-        if (!playerTwo.getIsBot()) {
-            WebSocketSession playerTwoSession = sessionService.getSession(playerTwo.getSessionId());
-            sendMatchFoundMessage(playerTwoSession, match.getId(), match.getCurrentTyperId(), playerOne.getUser());
-        }
-
-        startGameTimer(match.getId());
-    }
-
-    private void sendMatchFoundMessage(WebSocketSession session, String matchId,
-                                       String currentPlayerId,
-                                       UserEntity opponent) throws IOException {
-        MatchResponse response = new MatchResponse(matchId, currentPlayerId, modelMapper.map(opponent, UserDto.class));
-        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(
-                new WsMessage<>(SocketActions.MATCH_FOUND, response))));
-    }
-
-    private void startGameTimer(String matchId) {
-        AtomicInteger timeLeft = new AtomicInteger(10);
-        ScheduledExecutorService matchScheduler = Executors.newSingleThreadScheduledExecutor();
-        matchSchedulers.put(matchId, matchScheduler);
-
-        matchScheduler.scheduleAtFixedRate(() -> {
-            try {
-                if (timeLeft.get() < 0) {
-                    gameOver(matchId);
-                    stopMatchScheduler(matchId);
-                    return;
-                }
-                sendTimeUpdate(matchId, timeLeft.get());
-            } catch (Exception e) {
-                stopMatchScheduler(matchId);
-                throw new RuntimeException(e);
+            if (shouldCreateBot) {
+                UserEntity botUser = userService.getBot();
+                return playerService.save(PlayerEntity.builder()
+                        .sessionId(UUID.randomUUID().toString())
+                        .user(botUser)
+                        .isBot(true)
+                        .matchStatus(MatchStatus.BOT)
+                        .build());
             }
-            timeLeft.decrementAndGet();
-        }, 0, 1, TimeUnit.SECONDS);
-    }
 
-    private void stopMatchScheduler(String matchId) {
-        ScheduledExecutorService scheduler = matchSchedulers.remove(matchId);
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdown();
-            try {
-                // Wait for tasks to complete with a timeout
-                if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
+            return waitingPlayer;
+        } catch (Exception e) {
+            log.error("Error creating opponent: {}", e.getMessage());
+            throw new MatchmakingException("Failed to create opponent", e);
         }
     }
 
-    private void sendTimeUpdate(String matchId, int i) throws Exception {
-        MatchEntity match = matchService.getMatchEntity(matchId);
-        PlayerEntity playerOne = match.getPlayerOne();
-        PlayerEntity playerTwo = match.getPlayerTwo();
-        WsMessage<TimerResponse> timeLeft = WsMessage.<TimerResponse>builder()
-                .action(SocketActions.TIMER)
-                .data(new TimerResponse(i)).build();
+    private void updatePlayerStatuses(PlayerEntity player1, PlayerEntity player2) {
+        // Update status for first player
+        player1.setMatchStatus(MatchStatus.IN_MATCH);
+        playerService.updatePlayer(player1);
 
-        WebSocketSession playerOneSession = sessionService.getSession(playerOne.getSessionId());
-        if (!playerTwo.getIsBot()) {
-            WebSocketSession playerTwoSession = sessionService.getSession(playerTwo.getSessionId());
-            playerTwoSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(timeLeft)));
+        // Only update human players
+        if (!player2.getIsBot()) {
+            player2.setMatchStatus(MatchStatus.IN_MATCH);
+            playerService.updatePlayer(player2);
         }
-        playerOneSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(timeLeft)));
+
+        log.debug("Updated status for players: {} and {}",
+                player1.getSessionId(), player2.getSessionId());
     }
 
-    private void gameOver(String matchId) throws Exception {
-        MatchEntity match = matchService.getMatchEntity(matchId);
-        PlayerEntity playerOne = match.getPlayerOne();
-        PlayerEntity playerTwo = match.getPlayerTwo();
+    private void notifyMatchParticipants(MatchEntity match) throws MatchmakingException {
+        try {
+            PlayerEntity playerOne = match.getPlayerOne();
+            PlayerEntity playerTwo = match.getPlayerTwo();
+            WebSocketSession playerOneSession = sessionService.getSession(playerOne.getSessionId());
 
-        WsMessage<GameOverResponse> gameOverResponse = WsMessage.<GameOverResponse>builder()
-                .action(SocketActions.GAME_OVER)
-                .data(new GameOverResponse("Game over")).build();
+            // Create match data for player one
+            MatchFoundData player1Data = MatchFoundData.builder()
+                    .matchId(match.getId())
+                    .currentTyperId(match.getCurrentTyperId())
+                    .opponent(modelMapper.map(playerTwo.getUser(), UserDto.class))
+                    .build();
 
-        WebSocketSession playerOneSession = sessionService.getSession(playerOne.getSessionId());
-        WebSocketSession playerTwoSession = sessionService.getSession(playerTwo.getSessionId());
+            // Notify player one
+            notificationService.sendMatchFound(playerOneSession, player1Data);
 
-        if (!playerTwo.getIsBot()) {
-            playerTwoSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameOverResponse)));
-        }
+            // Only notify player two if they're not a bot
+            if (!playerTwo.getIsBot()) {
+                WebSocketSession playerTwoSession = sessionService.getSession(playerTwo.getSessionId());
 
-        playerOneSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(gameOverResponse)));
-        GameResultEntity gameResult = GameResultEntity.builder()
-                .matchId(matchId)
-                .vsBot(playerTwo.getIsBot())
-                .build();
-
-        gameResultService.saveGameResult(gameResult);
-        matchService.deleteMatch(matchId);
-
-        playerService.delete(playerOne.getSessionId());
-        playerService.delete(playerTwo.getSessionId());
-        playerOneSession.close();
-        if (!playerTwo.getIsBot()) {
-            playerTwoSession.close();
-        }
-    }
-
-    private boolean isPlayerEligible(PlayerEntity player) throws Exception {
-        if (player.getMatchStatus() == MatchStatus.IN_MATCH) {
-            throw new Exception("User already is in matchmaking");
-        }
-        if (player.getMatchStatus() == MatchStatus.OFFLINE) {
-            throw new Exception("User is offline");
-        }
-        return true;
-    }
-
-    public void connectionClosed(WebSocketSession session) throws Exception {
-        Optional<PlayerEntity> optionalPlayerEntity = playerService.getPlayerBySessionId(session.getId());
-        if (optionalPlayerEntity.isEmpty()) return;
-
-        PlayerEntity player = optionalPlayerEntity.get();
-
-        Optional<MatchEntity> optionalMatchEntity = matchService.getMatchByPlayerId(player.getSessionId());
-        if (optionalMatchEntity.isPresent()) {
-            MatchEntity match = optionalMatchEntity.get();
-            stopMatchScheduler(match.getId());
-
-            PlayerEntity opponent = match.getOpponent(player.getSessionId()).orElseThrow(() -> new ResourceNotFoundException("Opponent not found"));
-            WebSocketSession opponentSession = sessionService.getSession(opponent.getSessionId());
-
-            if (!opponent.getIsBot()) {
-                WsMessage<MatchAbandonedResponse> response = WsMessage.<MatchAbandonedResponse>builder()
-                        .action(SocketActions.PLAYER_LEFT)
-                        .data(new MatchAbandonedResponse("Opponent has left the match"))
+                // Create match data for player two
+                MatchFoundData player2Data = MatchFoundData.builder()
+                        .matchId(match.getId())
+                        .currentTyperId(match.getCurrentTyperId())
+                        .opponent(modelMapper.map(playerOne.getUser(), UserDto.class))
                         .build();
-                opponentSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
+
+                notificationService.sendMatchFound(playerTwoSession, player2Data);
             }
 
-            matchService.deleteMatch(match.getId());
-            if (!opponent.getIsBot()) {
-                opponentSession.close();
-            }
-            playerService.delete(opponent.getSessionId());
+            log.info("Match participants notified for match: {}", match.getId());
+        } catch (Exception e) {
+            log.error("Failed to notify match participants: {}", e.getMessage());
+            throw new MatchmakingException("Failed to notify match participants", e);
         }
-        playerService.delete(player.getSessionId());
+    }
+
+    private void cleanupMatch(MatchEntity match) {
+        matchService.delete(match.getId());
     }
 }

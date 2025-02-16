@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AuthService {
     private final JwtService jwtService;
-    private final UserServices userServices;
+    private final UserService userServices;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;

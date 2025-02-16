@@ -22,11 +22,11 @@ public class MatchEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "player_one_id", unique = true)
     private PlayerEntity playerOne;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.REMOVE)
     @JoinColumn(name = "player_two_id", unique = true)
     private PlayerEntity playerTwo;
 

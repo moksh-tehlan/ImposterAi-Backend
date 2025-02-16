@@ -3,7 +3,7 @@ package com.moksh.imposterai.config;
 import com.moksh.imposterai.entities.UserEntity;
 import com.moksh.imposterai.handler.WebSocketHandler;
 import com.moksh.imposterai.services.JwtService;
-import com.moksh.imposterai.services.UserServices;
+import com.moksh.imposterai.services.UserService;
 import com.moksh.imposterai.services.WebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -21,7 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
 
-    private final UserServices userServices;
+    private final UserService userServices;
     private final JwtService jwtService;
     private final WebSocketService webSocketService;
 

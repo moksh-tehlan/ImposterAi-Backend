@@ -1,7 +1,7 @@
 package com.moksh.imposterai.controllers;
 
 import com.moksh.imposterai.dtos.UserDto;
-import com.moksh.imposterai.services.UserServices;
+import com.moksh.imposterai.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final UserServices userServices;
+    private final UserService userServices;
 
     @GetMapping()
     public List<UserDto> getUser() {
