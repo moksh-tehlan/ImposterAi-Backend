@@ -2,6 +2,7 @@ package com.moksh.imposterai.services;
 
 import com.moksh.imposterai.dtos.enums.MatchStatus;
 import com.moksh.imposterai.entities.PlayerEntity;
+import com.moksh.imposterai.exceptions.PlayerAlreadyInMatchException;
 import com.moksh.imposterai.exceptions.PlayerNotFoundException;
 import com.moksh.imposterai.repositories.PlayerRepository;
 import jakarta.transaction.Transactional;
@@ -24,6 +25,9 @@ public class PlayerService {
     }
 
     public PlayerEntity save(PlayerEntity playerEntity) {
+        if (playerRepository.findById(playerEntity.getSessionId()).isPresent()) {
+            throw new PlayerAlreadyInMatchException(playerEntity.getSessionId());
+        }
         return playerRepository.save(playerEntity);
     }
 
@@ -38,7 +42,7 @@ public class PlayerService {
                 .matchStatus(playerEntity.getMatchStatus())
                 .sessionId(playerEntity.getSessionId())
                 .build();
-        save(updatedPlayerEntity);
+        playerRepository.save(updatedPlayerEntity);
     }
 
 }

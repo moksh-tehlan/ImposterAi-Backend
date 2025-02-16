@@ -3,11 +3,8 @@ package com.moksh.imposterai.services;
 import com.moksh.imposterai.entities.MatchEntity;
 import com.moksh.imposterai.exceptions.MatchNotFoundException;
 import com.moksh.imposterai.repositories.MatchRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -16,7 +13,7 @@ public class MatchService {
     private final MatchRepository matchRepository;
 
     protected MatchEntity getMatch(String matchId) {
-        return matchRepository.findById(matchId).orElseThrow(()-> new MatchNotFoundException(matchId));
+        return matchRepository.findById(matchId).orElseThrow(() -> new MatchNotFoundException(matchId));
     }
 
     public MatchEntity save(MatchEntity matchEntity) {
@@ -24,7 +21,7 @@ public class MatchService {
     }
 
     public MatchEntity findByPlayerId(String sessionId) {
-        return matchRepository.findByPlayerId(sessionId).orElseThrow(()->new MatchNotFoundException(sessionId));
+        return matchRepository.findByPlayerId(sessionId).orElseThrow(() -> new MatchNotFoundException(sessionId));
     }
 
     public void delete(String id) {

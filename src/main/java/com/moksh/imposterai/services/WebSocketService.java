@@ -5,10 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moksh.imposterai.dtos.enums.SocketActions;
 import com.moksh.imposterai.dtos.response.ErrorResponse;
 import com.moksh.imposterai.dtos.response.WsMessage;
-import com.moksh.imposterai.exceptions.ChatException;
-import com.moksh.imposterai.exceptions.MatchmakingException;
-import com.moksh.imposterai.exceptions.MessageParsingException;
-import com.moksh.imposterai.exceptions.ResourceNotFoundException;
+import com.moksh.imposterai.exceptions.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +22,6 @@ public class WebSocketService {
     private final MatchMakingService matchMakingService;
     private final PlayerChattingService playerChattingService;
     private final SessionService sessionService;
-    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     public void handleTextMessage(WebSocketSession session, TextMessage message) {
@@ -68,9 +64,9 @@ public class WebSocketService {
             errorMessage = e.getMessage();
             errorCode = 404;
             log.error("Resource not found: {}", e.getMessage());
-        } else if (e instanceof ChatException || e instanceof MatchmakingException) {
+        } else if (e instanceof GameException) {
             errorMessage = e.getMessage();
-            errorCode = 500;
+            errorCode = ((GameException) e).getErrorCode().hashCode();
             log.error("Game error: {}", e.getMessage());
         } else {
             errorMessage = "An unexpected error occurred";
