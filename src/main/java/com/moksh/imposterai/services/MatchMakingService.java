@@ -35,21 +35,25 @@ public class MatchMakingService {
     private final ModelMapper modelMapper;
     private final MatchmakingProperties matchmakingProperties;
     private final Random random = new Random();
+    private final PlayerChattingService playerChattingService;
 
     public void findMatch(String sessionId) throws MatchmakingException {
         PlayerEntity player = initializePlayer(sessionId);
         validatePlayerEligibility(player);
 
         List<PlayerEntity> waitingPlayers = playerService.getWaitingPlayers();
-        if (waitingPlayers.size() <= 1) {
-            return;
-        }
+//        if (waitingPlayers.size() <= 1) {
+//            return;
+//        }
 
         PlayerEntity opponent = createOpponent(waitingPlayers.get(0));
         MatchEntity match = createMatch(player, opponent);
 
         notifyMatchParticipants(match);
         timerService.startGameTimer(match.getId());
+        if (match.getCurrentTyperId().equals(opponent.getUser().getId()) && opponent.getIsBot()) {
+            playerChattingService.handleChatWithAi(player, match);
+        }
     }
 
     public void handleMatchAbandoned(String sessionId) throws MatchmakingException {
@@ -107,12 +111,12 @@ public class MatchMakingService {
             boolean shouldCreateBot = matchmakingProperties.getBotMatchingEnabled() && random.nextDouble() < matchmakingProperties.getBotMatchProbability();
 
             if (shouldCreateBot) {
-                UserEntity botUser = userService.getBot();
+                UserEntity botUser = userService.createBot();
                 return playerService.save(PlayerEntity.builder()
                         .sessionId(UUID.randomUUID().toString())
                         .user(botUser)
                         .isBot(true)
-                        .matchStatus(MatchStatus.BOT)
+                        .matchStatus(MatchStatus.IN_MATCH)
                         .build());
             }
 
@@ -176,6 +180,19 @@ public class MatchMakingService {
     }
 
     private void cleanupMatch(MatchEntity match) {
-        matchService.delete(match.getId());
+        try {
+            String botUserId = null;
+            if (match.getPlayerTwo().getIsBot()) {
+                botUserId = match.getPlayerTwo().getUser().getId();
+            }
+            matchService.delete(match.getId());
+            playerService.delete(match.getPlayerOne());
+            playerService.delete(match.getPlayerTwo());
+            if (botUserId != null) {
+                userService.delete(botUserId);
+            }
+        } catch (Exception e) {
+            log.warn("Error while cleaning up: {}", e.getMessage());
+        }
     }
 }

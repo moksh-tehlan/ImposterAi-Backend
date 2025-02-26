@@ -7,6 +7,8 @@ import com.moksh.imposterai.repositories.ChatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -23,6 +25,10 @@ public class ChatService {
                 .message(message)
                 .build();
         return chatRepository.save(chat);
+    }
+
+    public List<ChatEntity> getAllChats(String matchId) {
+        return chatRepository.findByMatchIdOrderBySendAtAsc(matchId);
     }
 
 }

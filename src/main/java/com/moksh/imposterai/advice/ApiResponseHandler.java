@@ -1,7 +1,10 @@
 package com.moksh.imposterai.advice;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moksh.imposterai.dtos.response.ApiResponse;
 import com.moksh.imposterai.dtos.response.ErrorResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
@@ -14,8 +17,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 @Slf4j
 public class ApiResponseHandler implements ResponseBodyAdvice<Object> {
+    private final ObjectMapper objectMapper;
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
@@ -37,7 +42,7 @@ public class ApiResponseHandler implements ResponseBodyAdvice<Object> {
             return body;
         }
 
-        return ApiResponse.success(body, message,status);
+        return ApiResponse.success(body, message, status);
     }
 
     private String determineMessage(ServerHttpResponse response) {

@@ -24,6 +24,7 @@ public class GameTimerService {
     private final MatchmakingProperties matchmakingProperties;
     private final GameResultService gameResultService;
     private final MatchService matchService;
+    private final UserService userService;
 
     public void startGameTimer(String matchId) {
         AtomicInteger timeLeft = new AtomicInteger(matchmakingProperties.getGameDuration());
@@ -72,7 +73,11 @@ public class GameTimerService {
         gameResultService.saveGameResult(gameResult);
         notificationService.sendGameOver(matchId);
         stopTimer(matchId);
+        String botId = match.getPlayerTwo().getIsBot() ? match.getPlayerTwo().getUser().getId() : null;
         matchService.delete(matchId);
+        if (botId != null) {
+            userService.delete(botId);
+        }
     }
 
 }

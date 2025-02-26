@@ -10,7 +10,6 @@ import com.moksh.imposterai.entities.ChatEntity;
 import com.moksh.imposterai.entities.MatchEntity;
 import com.moksh.imposterai.entities.PlayerEntity;
 import com.moksh.imposterai.exceptions.ChatException;
-import com.moksh.imposterai.exceptions.MatchNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -28,6 +27,7 @@ public class NotificationService {
     private final SessionService sessionService;
     private final ModelMapper modelMapper;
     private final MatchService matchService;
+    private final PlayerService playerService;
 
     /**
      * Match-related notifications
@@ -135,4 +135,21 @@ public class NotificationService {
         }
     }
 
+    public void sendNotifForAiMessage(String sessionId, ChatEntity chat) {
+        PlayerEntity player = playerService.getPlayerBySessionId(sessionId);
+        ChatResponse chatResponse = ChatResponse.builder()
+                .id(chat.getId())
+                .message(chat.getMessage())
+                .sender(modelMapper.map(chat.getSender(), UserDto.class))
+                .currentTyperId(player.getUser().getId())
+                .build();
+
+        WsMessage<ChatResponse> message = WsMessage.<ChatResponse>builder()
+                .action(SocketActions.CHAT)
+                .data(chatResponse)
+                .build();
+
+        WebSocketSession session = sessionService.getSession(sessionId);
+        sendMessage(session, message);
+    }
 }

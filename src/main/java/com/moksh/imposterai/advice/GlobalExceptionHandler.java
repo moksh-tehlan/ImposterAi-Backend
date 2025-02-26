@@ -2,9 +2,11 @@ package com.moksh.imposterai.advice;
 
 import com.moksh.imposterai.dtos.response.ErrorResponse;
 import com.moksh.imposterai.exceptions.ResourceNotFoundException;
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -58,6 +60,28 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "An unexpected error occurred"
+        );
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleAuthenticationException(AuthenticationException ex) {
+        log.error("Authorization exception", ex);
+
+        return new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getLocalizedMessage()
+        );
+    }
+
+    @ExceptionHandler(JwtException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleJwtException(JwtException ex) {
+        log.error("Authorization exception", ex);
+
+        return new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getLocalizedMessage()
         );
     }
 }

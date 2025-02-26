@@ -45,4 +45,7 @@ public class PlayerService {
         playerRepository.save(updatedPlayerEntity);
     }
 
+    public void delete(PlayerEntity playerOne) {
+        playerRepository.delete(playerOne);
+    }
 }

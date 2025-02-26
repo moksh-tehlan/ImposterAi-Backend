@@ -1,0 +1,23 @@
+version: "3.9"  # Or a recent version
+
+services:
+  your-app:
+    image: imposter-ai:latest
+    ports:
+      - "8080:8080"
+    env_file: .env
+    build: .  # Assuming your Dockerfile is in the same directory
+    depends_on:
+      - postgres
+    restart: no # Restart the container if it crashes
+
+  postgres:
+    image: postgres:latest  # Or a specific version (e.g., postgres:15)
+    ports:
+      - "5432:5432" # optional: map port if you need direct access from host.  Usually not recommended.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: no # Restart the container if it crashes
+
+volumes:
+  postgres_data:

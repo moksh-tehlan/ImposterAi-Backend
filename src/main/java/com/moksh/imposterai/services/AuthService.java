@@ -3,6 +3,7 @@ package com.moksh.imposterai.services;
 import com.moksh.imposterai.dtos.UserDto;
 import com.moksh.imposterai.dtos.requests.AuthRequest;
 import com.moksh.imposterai.dtos.response.AuthResponse;
+import com.moksh.imposterai.dtos.response.RefreshTokenResponse;
 import com.moksh.imposterai.entities.UserEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final ModelMapper modelMapper;
+    private final UserService userService;
 
     public AuthResponse login(AuthRequest authRequest) {
         Authentication authentication = authenticationManager.authenticate(
@@ -31,9 +33,10 @@ public class AuthService {
         );
         UserEntity user = (UserEntity) authentication.getPrincipal();
         log.info("User {} logged in", authRequest.getUsername());
-        String token = jwtService.generateToken(user);
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
         UserDto userDto = modelMapper.map(user, UserDto.class);
-        return AuthResponse.builder().userDto(userDto).token(token).build();
+        return AuthResponse.builder().userDto(userDto).accessToken(accessToken).refreshToken(refreshToken).build();
     }
 
     public AuthResponse signUp(AuthRequest authRequest) {
@@ -42,9 +45,10 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(authRequest.getPassword()));
         userServices.save(user);
         log.info("User {} signed up", authRequest.getUsername());
-        String token = jwtService.generateToken(user);
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
         UserDto userDto = modelMapper.map(user, UserDto.class);
-        return AuthResponse.builder().userDto(userDto).token(token).build();
+        return AuthResponse.builder().userDto(userDto).accessToken(accessToken).refreshToken(refreshToken).build();
     }
 
     public Boolean isUsernameExists(String username) {
@@ -54,5 +58,13 @@ public class AuthService {
         } catch (UsernameNotFoundException e) {
             return false;
         }
+    }
+
+    public RefreshTokenResponse refreshToken(String refreshToken) {
+        String userId = jwtService.getUserId(refreshToken);
+        UserEntity user = userService.loadUserById(userId);
+
+        String accessToken = jwtService.generateAccessToken(user);
+        return new RefreshTokenResponse(refreshToken, accessToken);
     }
 }

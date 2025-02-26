@@ -3,21 +3,28 @@ spring:
     name: ImposterAi
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/ImpostAi
-    username: mox
-    password: Moxtehlan@2
+    url: ${DATASOURCE_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      project-id: ${OPENAI_PROJECT_ID}
+      chat:
+        options:
+          model: gpt-4o
 
 game:
   matchmaking:
-    bot-match-probability: 0.3
+    bot-match-probability: 0.5
     max-wait-time-seconds: 30
     max-concurrent-matches: 1000
-    bot-matching-enabled: false
+    bot-matching-enabled: true
     game-duration: 120
 
 jwt:
-  secretKey: bXkxNkFocUhKbTFxNUtpc2Y0NlNxRkJmRHo4b3B0TGFEcVpXZkpNTkRuVnF1YmFK
+  secretKey: ${JWT_SECRET_KEY}
