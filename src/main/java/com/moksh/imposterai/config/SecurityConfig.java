@@ -26,6 +26,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(request -> request
+                        .requestMatchers("/actuator/**")
+                        .permitAll()
                         .requestMatchers("/auth/**")
                         .permitAll()
                         .requestMatchers("/game/**")
