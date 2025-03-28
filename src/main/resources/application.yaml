@@ -12,7 +12,7 @@ spring:
       ddl-auto: update
   ai:
     openai:
-      api-key: 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
+      api-key: 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
       project-id: ${OPENAI_PROJECT_ID}
       chat:
         options:
