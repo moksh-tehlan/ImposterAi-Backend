@@ -1,6 +1,5 @@
 package com.moksh.imposterai.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
@@ -26,6 +25,9 @@ public class UserEntity implements UserDetails {
     private String username;
 
     private String password;
+
+    @Builder.Default
+    private Boolean isVerified = false;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

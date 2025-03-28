@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moksh.imposterai.dtos.enums.SocketActions;
 import com.moksh.imposterai.dtos.response.ErrorResponse;
 import com.moksh.imposterai.dtos.response.WsMessage;
-import com.moksh.imposterai.exceptions.*;
+import com.moksh.imposterai.exceptions.GameException;
+import com.moksh.imposterai.exceptions.MessageParsingException;
+import com.moksh.imposterai.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +37,8 @@ public class WebSocketService {
 
     private WsMessage<?> parseMessage(TextMessage message) throws MessageParsingException {
         try {
-            return objectMapper.readValue(message.getPayload(), new TypeReference<>() {});
+            return objectMapper.readValue(message.getPayload(), new TypeReference<>() {
+            });
         } catch (Exception e) {
             log.error("Failed to parse WebSocket message: {}", e.getMessage());
             throw new MessageParsingException("Invalid message format", e);
@@ -66,7 +69,7 @@ public class WebSocketService {
             log.error("Resource not found: {}", e.getMessage());
         } else if (e instanceof GameException) {
             errorMessage = e.getMessage();
-            errorCode = ((GameException) e).getErrorCode().hashCode();
+            errorCode = ((GameException) e).getErrorCode().getCode();
             log.error("Game error: {}", e.getMessage());
         } else {
             errorMessage = "An unexpected error occurred";

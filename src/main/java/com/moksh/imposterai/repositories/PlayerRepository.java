@@ -16,7 +16,7 @@ public interface PlayerRepository extends JpaRepository<PlayerEntity, String> {
     Optional<PlayerEntity> findByUserId(@Param("userId") String userId);
 
     @Query("SELECT p FROM players p WHERE p.matchStatus = :matchStatus")
-    List<PlayerEntity> getWaitingPlayer(@Param("matchStatus")MatchStatus matchStatus);
+    List<PlayerEntity> getWaitingPlayer(@Param("matchStatus") MatchStatus matchStatus);
 
     String user(UserEntity user);
 }

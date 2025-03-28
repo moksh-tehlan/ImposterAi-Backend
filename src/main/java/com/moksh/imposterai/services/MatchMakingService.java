@@ -8,10 +8,7 @@ import com.moksh.imposterai.dtos.enums.MatchStatus;
 import com.moksh.imposterai.entities.MatchEntity;
 import com.moksh.imposterai.entities.PlayerEntity;
 import com.moksh.imposterai.entities.UserEntity;
-import com.moksh.imposterai.exceptions.MatchmakingException;
-import com.moksh.imposterai.exceptions.PlayerAlreadyInMatchException;
-import com.moksh.imposterai.exceptions.PlayerNotFoundException;
-import com.moksh.imposterai.exceptions.PlayerOfflineException;
+import com.moksh.imposterai.exceptions.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -42,11 +39,12 @@ public class MatchMakingService {
         validatePlayerEligibility(player);
 
         List<PlayerEntity> waitingPlayers = playerService.getWaitingPlayers();
-//        if (waitingPlayers.size() <= 1) {
-//            return;
-//        }
+        if (waitingPlayers.size() <= 1) {
+            return;
+        }
 
-        PlayerEntity opponent = createOpponent(waitingPlayers.get(0));
+        PlayerEntity opponent = createOpponent(waitingPlayers, sessionId);
+        if (opponent == null) return;
         MatchEntity match = createMatch(player, opponent);
 
         notifyMatchParticipants(match);
@@ -58,17 +56,20 @@ public class MatchMakingService {
 
     public void handleMatchAbandoned(String sessionId) throws MatchmakingException {
 
-        MatchEntity match = matchService.findByPlayerId(sessionId);
+        try {
+            MatchEntity match = matchService.findByPlayerId(sessionId);
+            timerService.stopTimer(match.getId());
 
-        timerService.stopTimer(match.getId());
+            PlayerEntity opponent = match.getOpponent(sessionId)
+                    .orElseThrow(() -> new PlayerNotFoundException("Opponent not found"));
 
-        PlayerEntity opponent = match.getOpponent(sessionId)
-                .orElseThrow(() -> new PlayerNotFoundException("Opponent not found"));
-
-        if (!opponent.getIsBot()) {
-            notificationService.sendMatchAbandoned(opponent.getSessionId());
+            if (!opponent.getIsBot()) {
+                notificationService.sendMatchAbandoned(opponent.getSessionId());
+            }
+            cleanupMatch(match);
+        } catch (MatchNotFoundException ex) {
+            playerService.delete(sessionId);
         }
-        cleanupMatch(match);
     }
 
     private PlayerEntity initializePlayer(String sessionId) {
@@ -82,7 +83,7 @@ public class MatchMakingService {
 
     private void validatePlayerEligibility(PlayerEntity player) throws MatchmakingException {
         if (player.getMatchStatus() == MatchStatus.IN_MATCH) {
-            throw new PlayerAlreadyInMatchException(player.getSessionId());
+            throw new PlayerAlreadyInMatchException();
         }
         if (player.getMatchStatus() == MatchStatus.OFFLINE) {
             throw new PlayerOfflineException(player.getSessionId());
@@ -105,7 +106,7 @@ public class MatchMakingService {
                 player2.getUser().getId();
     }
 
-    private PlayerEntity createOpponent(PlayerEntity waitingPlayer) throws MatchmakingException {
+    private PlayerEntity createOpponent(List<PlayerEntity> waitingPlayers, String sessionId) throws MatchmakingException {
         try {
             // Check if we should create a bot opponent (can be configurable)
             boolean shouldCreateBot = matchmakingProperties.getBotMatchingEnabled() && random.nextDouble() < matchmakingProperties.getBotMatchProbability();
@@ -120,7 +121,9 @@ public class MatchMakingService {
                         .build());
             }
 
-            return waitingPlayer;
+            return waitingPlayers.stream()
+                    .filter(p -> !p.getSessionId().equals(sessionId))
+                    .findFirst().orElse(null);
         } catch (Exception e) {
             log.error("Error creating opponent: {}", e.getMessage());
             throw new MatchmakingException("Failed to create opponent", e);

@@ -12,7 +12,7 @@ spring:
       ddl-auto: update
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY}
+      api-key: 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
       project-id: ${OPENAI_PROJECT_ID}
       chat:
         options:
@@ -20,7 +20,7 @@ spring:
 
 game:
   matchmaking:
-    bot-match-probability: 0.5
+    bot-match-probability: 1
     max-wait-time-seconds: 30
     max-concurrent-matches: 1000
     bot-matching-enabled: true
@@ -36,4 +36,4 @@ management:
         include: health,info
   endpoint:
     health:
-      show-details: always
+      show-details: never

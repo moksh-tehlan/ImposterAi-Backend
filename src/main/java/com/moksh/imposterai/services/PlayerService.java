@@ -25,8 +25,8 @@ public class PlayerService {
     }
 
     public PlayerEntity save(PlayerEntity playerEntity) {
-        if (playerRepository.findById(playerEntity.getSessionId()).isPresent()) {
-            throw new PlayerAlreadyInMatchException(playerEntity.getSessionId());
+        if (playerRepository.findByUserId(playerEntity.getUser().getId()).isPresent()) {
+            throw new PlayerAlreadyInMatchException();
         }
         return playerRepository.save(playerEntity);
     }
@@ -47,5 +47,9 @@ public class PlayerService {
 
     public void delete(PlayerEntity playerOne) {
         playerRepository.delete(playerOne);
+    }
+
+    public void delete(String sessionId){
+        playerRepository.deleteById(sessionId);
     }
 }

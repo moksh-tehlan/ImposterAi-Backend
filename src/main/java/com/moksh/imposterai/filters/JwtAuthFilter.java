@@ -55,6 +55,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header == null || !header.startsWith("Bearer ")) {
             return null;
         }
-        return header.replace("Bearer ", "");
+        String authToken = header.replace("Bearer ", "");
+        if (authToken.contains("null")) return null;
+        else return authToken;
     }
 }

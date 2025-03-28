@@ -1,6 +1,7 @@
 package com.moksh.imposterai.advice;
 
 import com.moksh.imposterai.dtos.response.ErrorResponse;
+import com.moksh.imposterai.exceptions.AccountNotVerifiedException;
 import com.moksh.imposterai.exceptions.ResourceNotFoundException;
 import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,17 @@ public class GlobalExceptionHandler {
 
         return new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
+                ex.getLocalizedMessage()
+        );
+    }
+
+    @ExceptionHandler(AccountNotVerifiedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleAccountNotVerified(AccountNotVerifiedException ex) {
+        log.error("Authorization exception", ex);
+
+        return new ErrorResponse(
+                ex.getErrorCode().getCode(),
                 ex.getLocalizedMessage()
         );
     }

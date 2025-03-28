@@ -26,7 +26,7 @@ public class JwtService {
                 .subject(userEntity.getId())
                 .claim("username", userEntity.getUsername())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * 24 * 30))
+                .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 5))
                 .signWith(getSecretKey())
                 .compact();
     }
